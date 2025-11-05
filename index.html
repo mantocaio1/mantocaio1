@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Escudo Animado — CyberSecure</title>
+<style>
+ :root{
+   --size: 320px; /* tamanho do ícone na página */
+ }
+ body{
+   display:flex;
+   align-items:center;
+   justify-content:center;
+   min-height:100vh;
+   margin:0;
+   font-family:system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+   background: linear-gradient(180deg,#081226 0%, #041028 100%);
+   color:#dfefff;
+ }
+ .card{
+   width:calc(var(--size) + 48px);
+   padding:24px;
+   border-radius:12px;
+   box-shadow:0 10px 30px rgba(0,0,0,0.6);
+   background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+   text-align:center;
+ }
+ h1{
+   font-size:20px;
+   margin:10px 0 18px;
+   letter-spacing:0.4px;
+ }
+ /* container do svg para controlar o tamanho */
+ .shield-wrap{
+   width:var(--size);
+   height:var(--size);
+   display:inline-block;
+ }
+ /* animação de pulso + leve rotação (sway) aplicada ao grupo principal do SVG */
+ @keyframes pulse {
+   0% { transform: scale(0.985) rotate(-2deg); }
+   50% { transform: scale(1.02) rotate(2deg); }
+   100% { transform: scale(0.985) rotate(-2deg); }
+ }
+ /* aplicamos a animação ao elemento <g id="shield"> dentro do SVG
+    usando CSS descendente: svg g#shield { animation: ... } */
+ svg g#shield {
+   transform-origin: center;
+   animation: pulse 3.8s ease-in-out infinite;
+ }
+ /* brilho extra: um pseudo-elemento SVG (rect) terá uma transição suave via CSS.
+    O movimento real do gradiente é feito em JS ajustando offsets dos <stop>. */
+ /* Responsividade pequena */
+ @media (max-width:420px){
+   :root{ --size: 220px; }
+ }
+ /* legenda / instruções (opcional) */
+ .hint{
+   margin-top:14px;
+   font-size:13px;
+   color: #bcd7ff88;
+ }
+ /* botão de toggle para pausar animação (JS) */
+ .controls{
+   margin-top:12px;
+ }
+ button{
+   border:0;
+   background:#0b6cff;
+   color:white;
+   padding:8px 12px;
+   border-radius:8px;
+   cursor:pointer;
+   font-weight:600;
+ }
+ button[aria-pressed="true"]{ background:#2b8bffcc; }
+</style>
+</head>
+<body>
+<div class="card">
+<div class="shield-wrap" role="img" aria-label="Escudo animado de cibersegurança">
+<!-- SVG inline: sem SMIL, com ids para manipular via CSS/JS -->
+<svg xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 120 120"
+          width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+<title>Escudo de Cibersegurança</title>
+<defs>
+<linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+<!-- notes: offsets serão atualizados por JS -->
+<stop id="s0" offset="0%" stop-color="#0b6cff" stop-opacity="0.7"/>
+<stop id="s1" offset="50%" stop-color="#4af1a8" stop-opacity="0.95"/>
+<stop id="s2" offset="100%" stop-color="#0b6cff" stop-opacity="0.7"/>
+</linearGradient>
+<filter id="fshadow" x="-50%" y="-50%" width="200%" height="200%">
+<feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.25"/>
+</filter>
+</defs>
+<rect width="120" height="120" fill="none"/>
+<!-- Grupo que recebe a animação de pulso / sway -->
+<g id="shield" transform="translate(60,60)">
+<g filter="url(#fshadow)">
+<path id="shield-path"
+                 d="M0,-46 L36,-26 A6,6 0 0 1 36,20 C36,44 0,56 0,56 C0,56 -36,44 -36,20 A6,6 0 0 1 -36,-26 Z"
+                 fill="url(#grad)" stroke="#042a66" stroke-width="2.2"/>
+</g>
+<!-- detalhes internos: circuito e cadeado -->
+<g transform="translate(0,-6)">
+<path d="M-20,10 L-6,10" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" opacity="0.95"/>
+<circle cx="-20" cy="10" r="1.8" fill="#ffffff"/>
+<circle cx="-6" cy="10" r="1.8" fill="#ffffff"/>
+<path d="M6,10 L20,10" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" opacity="0.95"/>
+<circle cx="6" cy="10" r="1.8" fill="#ffffff"/>
+<circle cx="20" cy="10" r="1.8" fill="#ffffff"/>
+<rect x="-10" y="-8" width="20" height="14" rx="2.2" ry="2.2" fill="#ffffff" opacity="0.98"/>
+<path d="M-2,-8 a6,6 0 0 1 4,0" stroke="#042a66" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<!-- brilho sutil sobre o escudo (camada semi-transparente) -->
+<path id="gloss" d="M-36,-26 Q0,-46 36,-26 Q0,0 -36,-26 Z"
+                 fill="#ffffff" opacity="0.06"/>
+</g>
+</g>
+</svg>
+</div>
+<h1>Escudo Animado — CyberSecure</h1>
+<div class="hint">SVG inline com animação (pulso + brilho). Ajuste cores e velocidade no JS/CSS.</div>
+<div class="controls" aria-hidden="false">
+<button id="toggleAnim" aria-pressed="false">Pausar Animação</button>
+</div>
+</div>
+<script>
+/*
+ JS responsável por:
+ - animar os offsets dos stops do gradiente (efeito de brilho passando)
+ - permitir pausar/resumir a animação
+ - expor parâmetros fáceis de editar abaixo
+*/
+/* === Parâmetros editáveis === */
+const params = {
+ speed: 0.008,      // velocidade do brilho (quanto maior, mais rápido)
+ amplitude: 1.35,   // amplitude para 'spread' do brilho
+ loop: true
+};
+/* ============================ */
+const stop0 = document.getElementById('s0');
+const stop1 = document.getElementById('s1');
+const stop2 = document.getElementById('s2');
+let running = true;
+let t = 0; // tempo
+// função para mapear valor 0..1 -> offset string "xx%"
+function off(v){ return (v*100).toFixed(2) + '%'; }
+// animação frame a frame usando requestAnimationFrame
+function step(now){
+ if(!running) return; // se pausado, não continua os frames
+ // incrementa o tempo (usar incremento fixo facilita ajustes)
+ t += params.speed * 16.67; // aproximando 60fps base
+ // podemos usar uma função periódica para mover os stops
+ // center varia entre -0.5 e 1.5 para fazer o brilho atravessar
+ const center = (Math.sin(t*0.7) * 0.5 + 0.5) * params.amplitude - 0.25;
+ // calculamos offsets para três stops em torno do center
+ // ajustando spread e suavidade
+ const spread = 0.18 + 0.06 * Math.sin(t*1.2);
+ const o0 = center - spread;
+ const o1 = center;
+ const o2 = center + spread;
+ // definimos os offsets (valores limitados 0..1 para evitar valores inválidos)
+ stop0.setAttribute('offset', Math.max(0, Math.min(1, o0)));
+ stop1.setAttribute('offset', Math.max(0, Math.min(1, o1)));
+ stop2.setAttribute('offset', Math.max(0, Math.min(1, o2)));
+ // pequena oscilação do brilho (opacidade) para dar vida
+ const gloss = document.getElementById('gloss');
+ if(gloss){
+   const op = 0.04 + 0.02 * Math.sin(t*1.8);
+   gloss.setAttribute('opacity', op.toFixed(3));
+ }
+ // requisita o próximo frame
+ if(params.loop) requestAnimationFrame(step);
+}
+// Start automático
+requestAnimationFrame(step);
+// Toggle botão de pausar/resumir
+const btn = document.getElementById('toggleAnim');
+btn.addEventListener('click', () => {
+ running = !running;
+ btn.setAttribute('aria-pressed', String(!running));
+ btn.textContent = running ? 'Pausar Animação' : 'Retomar Animação';
+ if(running) requestAnimationFrame(step);
+});
+// Expor params no console para ajuste rápido
+window.__shieldParams = params;
+console.info('Escudo animado — parâmetros disponíveis em window.__shieldParams (ex: window.__shieldParams.speed = 0.02)');
+</script>
+</body>
+</html>
